@@ -175,6 +175,12 @@ async fn submit_handler(
         .map(|m| parse_hex32("mint", m))
         .transpose()?;
     let nullifiers = parse_hex32_pair("nullifiers", &req.nullifiers)?;
+    if nullifiers[0] == nullifiers[1] {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "nullifiers must be distinct".to_string(),
+        ));
+    }
     let output_commitments = parse_hex32_pair("output_commitments", &req.output_commitments)?;
     let root = parse_hex32("root", &req.root)?;
 
@@ -420,6 +426,26 @@ mod tests {
             .oneshot(post_json(&body_with_ext_amount(1)))
             .await
             .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn duplicate_nullifiers_is_400() {
+        let app = router(Arc::new(StubIngress { accept: true }), None);
+        let dup = "11".repeat(32);
+        let body = format!(
+            r#"{{"recipient":"{}","nullifiers":["{}","{}"],"output_commitments":["{}","{}"],"root":"{}","ext_amount":0,"proof":"{}","ciphertexts":["{}","{}"]}}"#,
+            "66".repeat(32),
+            dup,
+            dup,
+            "33".repeat(32),
+            "44".repeat(32),
+            "55".repeat(32),
+            "01".repeat(192),
+            v1_ciphertext_hex(0xab),
+            v1_ciphertext_hex(0xcd)
+        );
+        let resp = app.oneshot(post_json(&body)).await.unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 

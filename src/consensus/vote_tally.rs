@@ -213,6 +213,9 @@ impl VoteTally {
 
     /// Get completion percentage
     pub async fn completion_percentage(&self) -> f64 {
+        if self.total_validators == 0 {
+            return 0.0;
+        }
         let votes = self.votes.read().await;
         (votes.len() as f64 / self.total_validators as f64) * 100.0
     }
@@ -316,6 +319,15 @@ mod tests {
         let eligible = wallets(&["W1"]);
         let voters = tally.valid_voters(&eligible).await;
         assert_eq!(voters, vec![NodeId(vec![1])]);
+    }
+
+    #[tokio::test]
+    async fn completion_percentage_returns_zero_when_total_validators_is_zero() {
+        let tally = VoteTally::new("req-zero".to_string(), 1, 0);
+        let pct = tally.completion_percentage().await;
+        assert_eq!(pct, 0.0);
+        assert!(!pct.is_nan());
+        assert!(!pct.is_infinite());
     }
 
     #[tokio::test]

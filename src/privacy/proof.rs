@@ -305,6 +305,11 @@ impl ProofVerifier {
                 };
             }
         }
+        if nullifiers[0] == nullifiers[1] {
+            return VerificationResult::Invalid {
+                reason: "duplicate nullifiers: input nullifiers must be distinct".to_string(),
+            };
+        }
         for commitment in output_commitments {
             if !is_canonical_le(commitment) {
                 return VerificationResult::Invalid {
@@ -485,6 +490,25 @@ mod tests {
                 assert!(reason.contains("non-canonical nullifier"), "{reason}")
             }
             _ => panic!("non-canonical nullifier must be invalid"),
+        }
+    }
+
+    #[test]
+    fn transact_parts_rejects_duplicate_nullifiers() {
+        let r = ProofVerifier::verify_transact_parts(
+            &[0u8; 32],
+            &[3u8; 32],
+            -500,
+            &[0u8; 32],
+            &[[1u8; 32], [1u8; 32]], // duplicate
+            &[[3u8; 32], [4u8; 32]],
+            &[0u8; 64],
+        );
+        match r {
+            VerificationResult::Invalid { reason } => {
+                assert!(reason.contains("duplicate nullifiers"), "{reason}")
+            }
+            _ => panic!("duplicate nullifiers must be invalid"),
         }
     }
 
